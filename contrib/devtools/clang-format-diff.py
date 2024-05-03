@@ -73,6 +73,7 @@ import io
 import re
 import subprocess
 import sys
+from security import safe_command
 
 
 # Change this to the full path if clang-format is not on the path.
@@ -142,7 +143,7 @@ def main():
       command.append('-sort-includes')
     command.extend(lines)
     command.extend(['-style=file', '-fallback-style=none'])
-    p = subprocess.Popen(command,
+    p = safe_command.run(subprocess.Popen, command,
                          stdout=subprocess.PIPE,
                          stderr=None,
                          stdin=subprocess.PIPE,
