@@ -12,6 +12,7 @@ from typing import List
 import unittest
 
 from utils import determine_wellknown_cmd
+from security import safe_command
 
 def write_testcode(filename):
     with open(filename, 'w', encoding="utf8") as f:
@@ -38,12 +39,12 @@ def call_security_check(cc, source, executable, options):
     for var in ['CFLAGS', 'CPPFLAGS', 'LDFLAGS']:
         env_flags += filter(None, os.environ.get(var, '').split(' '))
 
-    subprocess.run([*cc,source,'-o',executable] + env_flags + options, check=True)
+    safe_command.run(subprocess.run, [*cc,source,'-o',executable] + env_flags + options, check=True)
     p = subprocess.run(['./contrib/devtools/security-check.py',executable], stdout=subprocess.PIPE, universal_newlines=True)
     return (p.returncode, p.stdout.rstrip())
 
 def get_arch(cc, source, executable):
-    subprocess.run([*cc, source, '-o', executable], check=True)
+    safe_command.run(subprocess.run, [*cc, source, '-o', executable], check=True)
     binary = lief.parse(executable)
     arch = binary.abstract.header.architecture
     os.remove(executable)
