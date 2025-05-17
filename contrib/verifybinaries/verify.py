@@ -18,6 +18,7 @@ import os
 import subprocess
 import sys
 from textwrap import indent
+from security import safe_command
 
 WORKINGDIR = "/tmp/bitcoin_verify_binaries"
 HASHFILE = "hashes.tmp"
@@ -54,7 +55,7 @@ def download_with_wget(remote_file, local_file=None):
         # use timestamping mechanism if local filename is not explicitly set
         wget_args = ['wget', '-N', remote_file]
 
-    result = subprocess.run(wget_args,
+    result = safe_command.run(subprocess.run, wget_args,
                             stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
     return result.returncode == 0, result.stdout.decode().rstrip()
 

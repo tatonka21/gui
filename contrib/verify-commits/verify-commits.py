@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 import time
+from security import safe_command
 
 GIT = os.getenv('GIT', 'git')
 
@@ -32,7 +33,7 @@ def tree_sha512sum(commit='HEAD'):
     files.sort()
     # open connection to git-cat-file in batch mode to request data for all blobs
     # this is much faster than launching it per file
-    p = subprocess.Popen([GIT, 'cat-file', '--batch'], stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+    p = safe_command.run(subprocess.Popen, [GIT, 'cat-file', '--batch'], stdout=subprocess.PIPE, stdin=subprocess.PIPE)
     overall = hashlib.sha512()
     for f in files:
         blob = blob_by_name[f]
@@ -118,13 +119,13 @@ def main():
         os.environ['BITCOIN_VERIFY_COMMITS_ALLOW_REVSIG'] = "1" if current_commit in revsig_allowed else "0"
 
         # Check that the commit (and parents) was signed with a trusted key
-        if subprocess.call([GIT, '-c', 'gpg.program={}/gpg.sh'.format(dirname), 'verify-commit', current_commit], stdout=subprocess.DEVNULL):
+        if safe_command.run(subprocess.call, [GIT, '-c', 'gpg.program={}/gpg.sh'.format(dirname), 'verify-commit', current_commit], stdout=subprocess.DEVNULL):
             if prev_commit != "":
                 print("No parent of {} was signed with a trusted key!".format(prev_commit), file=sys.stderr)
                 print("Parents are:", file=sys.stderr)
                 parents = subprocess.check_output([GIT, 'show', '-s', '--format=format:%P', prev_commit]).decode('utf8').splitlines()[0].split(' ')
                 for parent in parents:
-                    subprocess.call([GIT, 'show', '-s', parent], stdout=sys.stderr)
+                    safe_command.run(subprocess.call, [GIT, 'show', '-s', parent], stdout=sys.stderr)
             else:
                 print("{} was not signed with a trusted key!".format(current_commit), file=sys.stderr)
             sys.exit(1)
@@ -148,15 +149,15 @@ def main():
         allow_unclean = current_commit in unclean_merge_allowed
         if len(parents) == 2 and check_merge and not allow_unclean:
             current_tree = subprocess.check_output([GIT, 'show', '--format=%T', current_commit]).decode('utf8').splitlines()[0]
-            subprocess.call([GIT, 'checkout', '--force', '--quiet', parents[0]])
-            subprocess.call([GIT, 'merge', '--no-ff', '--quiet', '--no-gpg-sign', parents[1]], stdout=subprocess.DEVNULL)
+            safe_command.run(subprocess.call, [GIT, 'checkout', '--force', '--quiet', parents[0]])
+            safe_command.run(subprocess.call, [GIT, 'merge', '--no-ff', '--quiet', '--no-gpg-sign', parents[1]], stdout=subprocess.DEVNULL)
             recreated_tree = subprocess.check_output([GIT, 'show', '--format=format:%T', 'HEAD']).decode('utf8').splitlines()[0]
             if current_tree != recreated_tree:
                 print("Merge commit {} is not clean".format(current_commit), file=sys.stderr)
-                subprocess.call([GIT, 'diff', current_commit])
-                subprocess.call([GIT, 'checkout', '--force', '--quiet', branch])
+                safe_command.run(subprocess.call, [GIT, 'diff', current_commit])
+                safe_command.run(subprocess.call, [GIT, 'checkout', '--force', '--quiet', branch])
                 sys.exit(1)
-            subprocess.call([GIT, 'checkout', '--force', '--quiet', branch])
+            safe_command.run(subprocess.call, [GIT, 'checkout', '--force', '--quiet', branch])
 
         prev_commit = current_commit
         current_commit = parents[0]
